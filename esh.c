@@ -14,17 +14,17 @@
 #define ARGS_SIZE 64
 #define MAX_PATH 100
 #define PATH_INIT "/bin"
-#define MAX_BG
+#define MAX_BG 25
 
 
 typedef struct BG_DETAIL{
     int pid;
     char *cmd;
-}BG;
+};
 
 char *paths[MAX_PATH];
 int paths_length;
-BG bg_recod[MAX_BG];
+struct BG_DETAIL bg_recod[MAX_BG];
 int bg_place;
 
 //
@@ -53,7 +53,7 @@ void print_current_bg(int pid, char *cmd) {
 
 void init_path(){
     paths[0] = PATH_INIT;
-    paths_length = 0;
+    paths_length = 1;
 }
 
 void init_bg(){
@@ -137,7 +137,7 @@ char **split_cmd_to_args(char * cmd,int *count){
             *count +=1 ;
         }
         if(cmd[j] == '|' || cmd[j] == '<' || cmd[j] == '>'){
-            printf("HERE\n");
+            //printf("HERE\n");
             char *special = (char*)malloc(SINGLE_CMD_SIZE * sizeof(char));
             if(cmd[j] == '|'){
                 args[*count] = "|\0";
@@ -179,12 +179,24 @@ int built_in(char **args){
         return 1;
     }
     else if(strcmp(args[0],"exit") == 0){
-        exit(0);
+        exit(1);
     }
     else if(strcmp(args[0],"bg") == 0){
         return 1;
     }
-    else if(strcmp(args[0],"path") == 0){
+    else if(strcmp(args[0],"paths") == 0){
+        if(args[1] == NULL){
+            for(int i = 0; i < paths_length; i++){
+                print_path_info(i+1,paths[i]);
+            }
+        }
+        else{
+            paths_length = 0;
+            while(args[paths_length + 1] != NULL){
+                paths[paths_length] = args[paths_length + 1];
+                paths_length++;
+            }
+        }
         return 1;
     }
     else{
@@ -198,14 +210,14 @@ int outside_cmd(char **args){
     pid = fork();
     if(pid == 0){
         if(execvp(args[0],args) < 0){
+            //printf("%d\n",pid);
+            //print_error_info();
             return -1;
         }
     }
     else{
-        do
-        {
-            wpid = waitpid(pid,&status,WUNTRACED);
-        } while (!WIFEXITED(status) && !WIFSIGNALED(status));    
+        wpid = waitpid(pid,&status,WUNTRACED);
+          
     }
     return 1;
 }
@@ -217,12 +229,12 @@ void start_execute(char **args){
     int priority = built_in(args);
     if(priority == -1){//builtin cmd execute failed
         print_error_info();
-        return;
     }
     else if(priority == 0){
         int priority2 = outside_cmd(args);
         if(priority2 == -1){
             print_error_info();
+            exit(0);
         }
     }
 }
@@ -251,7 +263,10 @@ int main() {
             //    printf("prm:%s#\n",args[j]);
             //}
             start_execute(args);
+            free(args);
         }
+        free(line);
+        free(cmds);
         // TODO
         // Show your intelligence
     }
